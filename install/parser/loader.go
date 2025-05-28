@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode"
 )
 
 func New(workDir string, module string) (*LoaderParser, error) {
@@ -78,6 +79,20 @@ func (s *LoaderParser) Init() error {
 	return s.checkOrGenerate()
 }
 
+func defaultPackageName(dir string) string {
+	packageName := path.Base(dir)
+	packageName = strings.ToLower(packageName)
+	reg := regexp.MustCompile(`[^a-z0-9]+`)
+	packageName = reg.ReplaceAllString(packageName, "")
+	packageName = strings.TrimLeftFunc(packageName, func(r rune) bool {
+		return unicode.IsDigit(r)
+	})
+	if packageName == "" {
+		packageName = "base"
+	}
+	return packageName
+}
+
 func (s *LoaderParser) checkOrGenerate() error {
 	fileExists := false
 	fileInfo, err := os.Stat(s.loaderFile)
@@ -90,7 +105,7 @@ func (s *LoaderParser) checkOrGenerate() error {
 	if !fileExists {
 		packageName := GetDirPackageName(s.currentModuleAbsPath)
 		if packageName == "" {
-			packageName = path.Base(s.currentModule)
+			packageName = defaultPackageName(s.currentModule)
 		}
 
 		content := fmt.Sprintf(codeTpl,
